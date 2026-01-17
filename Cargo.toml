@@ -1,0 +1,7 @@
+[package]
+name = "gk_math"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+macro_utils = {path="macro_utils"}
