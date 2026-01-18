@@ -14,7 +14,7 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
             _ => {
                 return syn::Error::new_spanned(
                     name,
-                    "VectorMath only use to struct (e.g struct Vec3{ x:f32, y:f32, z:f32})"
+                    "VectorMath only use to struct (e.g struct Vec3{x:f32, y:f32, z:f32})"
                 )
                 .to_compile_error()
                 .into();
@@ -36,6 +36,7 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
     let field_count = field_types.len();
     let field_index = (0..field_count).collect::<Vec<usize>>();
 
+    // check field is not zero
     if field_types.len() == 0 {
         return syn::Error::new_spanned(
             name,
@@ -47,7 +48,7 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
     
     let elem_ty: &syn::Type = field_types[0];
 
-    // 检查字段类型是否为基本类型
+    // check field type
     for field_type in &field_types {
         let type_str = quote!(#field_type).to_string();
         let primitive_types = [
@@ -76,10 +77,10 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
         }
     }
 
+    // cross product impl generate
     let cross_impl = if field_count == 3 {
         quote!{
-            impl #name {        
-                /// 三维向量的叉积   
+            impl #name {         
                 #[inline]
                 pub fn cross(a: &Self, b: &Self) -> Self {
                     #name::new(
@@ -94,7 +95,7 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
         quote!()
     };
 
-    // 生成代码
+    // code generate
     let expanded = quote! {
         impl #name {
             #[inline]
@@ -104,39 +105,38 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
                 }
             }
 
-            /// 计算向量的点积
             #[inline]
             pub fn dot(&self, other: &Self) -> #elem_ty {
                 #(self.#field_names * other.#field_names) + *
             }
             
-            /// 计算向量的长度平方（避免开方运算）
             #[inline]
             pub fn length_squared(&self) -> #elem_ty {
                 self.dot(self)
             }
             
-            /// 计算向量的长度
             #[inline]
             pub fn length(&self) -> #elem_ty {
                 self.length_squared().sqrt()
             }
             
-            /// 返回归一化（单位长度）的向量
             #[inline]
             pub fn normalized(&self) -> Self {
                 Self {
                     #(#field_names: self.#field_names / self.length(),)*
                 }
             }
-            
-            /// 向量是否为零向量
+
             #[inline]
             pub fn is_zero(&self) -> bool {
                 #(self.#field_names == <#elem_ty as Default>::default())&&*
             }
             
-            /// 获取最小元素值
+            #[inline]
+            pub fn sum(&self) -> #elem_ty {
+                #(self.#field_names)+*
+            }
+
             pub fn min_element(&self) -> #elem_ty {
                 let mut min = self[0];
                 #(
@@ -146,8 +146,7 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
                 )*
                 min
             }
-            
-            /// 获取最大元素值
+
             pub fn max_element(&self) -> #elem_ty {
                 let mut max = self[0];
                 #(
@@ -157,8 +156,7 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
                 )*
                 max
             }
-            
-            /// 对向量的每个元素应用函数
+
             pub fn map<F>(self, f: F) -> #name
             where
                 F: Fn(#elem_ty) -> #elem_ty
@@ -179,7 +177,6 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
             }
         }
 
-        // 实现加法
         impl std::ops::Add for #name {
             type Output = Self;
             
@@ -190,14 +187,12 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
             }
         }
         
-        // 实现加法赋值
         impl std::ops::AddAssign for #name {
             fn add_assign(&mut self, rhs: Self) {
                 #(self.#field_names += rhs.#field_names;)*
             }
         }
         
-        // 实现减法
         impl std::ops::Sub for #name {
             type Output = Self;
             
@@ -208,14 +203,12 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
             }
         }
         
-        // 实现减法赋值
         impl std::ops::SubAssign for #name {
             fn sub_assign(&mut self, rhs: Self) {
                 #(self.#field_names -= rhs.#field_names;)*
             }
         }
         
-        // 实现向量取反
         impl std::ops::Neg for #name {
             type Output = Self;
             
@@ -226,7 +219,6 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
             }
         }
         
-        // 实现标量乘法（右侧为标量）
         impl std::ops::Mul<#elem_ty> for #name {
             type Output = Self;
             
@@ -237,14 +229,12 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
             }
         }
         
-        // 实现标量乘法赋值
         impl std::ops::MulAssign<#elem_ty> for #name {
             fn mul_assign(&mut self, rhs: #elem_ty) {
                 #(self.#field_names *= rhs;)*
             }
         }
-        
-        // 实现标量乘法（左侧为标量）
+
         impl std::ops::Mul<#name> for #elem_ty {
             type Output = #name;
             
@@ -254,8 +244,16 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
                 )
             }
         }
-        
-        // 实现标量除法
+
+        impl std::ops::Mul<#name> for #name {
+            type Output = #name;
+            fn mul(self, rhs: #name) -> Self::Output {
+                #name::new(
+                    #(self.#field_names * rhs.#field_names),*
+                )
+            }
+        }
+
         impl std::ops::Div<#elem_ty> for #name {
             type Output = Self;
             
@@ -266,26 +264,29 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
             }
         }
         
-        // 实现标量除法赋值
         impl std::ops::DivAssign<#elem_ty> for #name {
             fn div_assign(&mut self, rhs: #elem_ty) {
                 #(self.#field_names /= rhs;)*
             }
         }
+
+        impl std::ops::Div<#name> for #name {
+            type Output = Self;
+            fn div(self, rhs: #name) -> Self::Output {
+                #name::new(
+                    #(self.#field_names / rhs.#field_names),*
+                )
+            }
+        }
         
-        // 实现相等比较
         impl PartialEq for #name {
             fn eq(&self, other: &Self) -> bool {
                 #(self.#field_names == other.#field_names)&&*
             }
         }
         
-        // 实现大小比较（逐元素比较）
         impl PartialOrd for #name {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-                // 逐元素比较，如果所有元素都相等返回 Equal
-                // 如果所有对应元素都满足 <= 或 >=，返回相应的 Ordering
-                // 否则返回 None（不可比较）
                 
                 let mut result = std::cmp::Ordering::Equal;
                 
@@ -328,29 +329,26 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
             }
         }
         
-        // 实现调试输出
         impl std::fmt::Debug for #name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{} [", stringify!(#name))?;
                 #(
-                    write!(f, "{:?} ", self.#field_names)?;
+                    write!(f, " {:?} ", self.#field_names)?;
                 )*
                 write!(f, "]")
             }
         }
         
-        // 实现显示输出
         impl std::fmt::Display for #name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "[")?;
                 #(
-                    write!(f, "{} ", self.#field_names)?;
+                    write!(f, " {} ", self.#field_names)?;
                 )*
                 write!(f, "]")
             }
         }
         
-        // 实现索引访问
         impl std::ops::Index<usize> for #name {
             type Output = #elem_ty;
             

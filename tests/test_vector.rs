@@ -21,5 +21,7 @@ mod tests {
         assert_eq!(v1 * 2.0, v2);
         assert_eq!(v1.dot(&v2), 28.0);
         assert_eq!(Vec3::cross(&v1, &v2), Vec3::new(0.0, 0.0, 0.0));
+        assert_eq!(v1 * v2, Vec3::new(2.0, 8.0, 18.0));
+        assert_eq!(v1.sum(), 6.0);
     }
 }
