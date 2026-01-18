@@ -65,8 +65,7 @@ pub fn vector_math_impl(input: TokenStream) -> TokenStream {
             .to_compile_error()
             .into();
         }
-
-        
+ 
         if type_str != quote!(#elem_ty).to_string() {
             return  syn::Error::new_spanned(
                 field_type, 
